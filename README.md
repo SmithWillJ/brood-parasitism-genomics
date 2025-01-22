@@ -9,9 +9,15 @@ A - Preliminary data processing
 B - Generating VCFs for analyses
 
 C - Popgen structure (PCA)
+
 D - Popgen structure (EEMS)
+
 E - Popgen structure (ADMIXTURE analysis)
+
 F - Genotype-environment analysis (LFMM)
+
 G - Genotype-environment analysis (RDA and pRDA)
+
 H - Genotype-environment analysis (BayeScEnv)
+
 I - Identifying candidate genes, and calculating additive polygenic scores
