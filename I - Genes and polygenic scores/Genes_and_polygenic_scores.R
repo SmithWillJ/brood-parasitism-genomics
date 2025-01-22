@@ -325,7 +325,7 @@ ggsave('Composite_plot.png', path = '~/output/path/', dpi = 300, width = 7, heig
 
 ##### Where is Ase64 microsatellite? We do not have a SNP at this site.
 
-## From Blast, Ase64 is at positions 22090624 - 22089985
+## From Blast (https://blast.ncbi.nlm.nih.gov/Blast.cgi), Ase64 is at positions 22090624 - 22089985
 mid_micro = (22090624 + 22089985)/2
 
 chrom_8_snps <- vcf %>% filter(CHROM == 'SUPER_8') %>%
