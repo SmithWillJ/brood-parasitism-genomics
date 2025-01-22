@@ -5,7 +5,9 @@ Manuscript available at: https://doi.org/10.1101/2025.01.06.631542
 Structured, by folders, as follows:
 
 A - Preliminary data processing
+
 B - Generating VCFs for analyses
+
 C - Popgen structure (PCA)
 D - Popgen structure (EEMS)
 E - Popgen structure (ADMIXTURE analysis)
