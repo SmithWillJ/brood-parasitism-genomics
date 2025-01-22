@@ -324,7 +324,7 @@ plot_grid(ps1, ps2, ps3, ps4, ps5, ps6, ncol = 2,
 ggsave('Composite_plot.png', path = '~/output/path/', dpi = 300, width = 7, height = 8, unit = 'in')
 
 ##### Where is Ase64 microsatellite? We do not have a SNP at this site.
-
+## For details on this microsat, see: https://onlinelibrary.wiley.com/doi/10.1046/j.1365-294X.2000.105338.x
 ## From Blast (https://blast.ncbi.nlm.nih.gov/Blast.cgi), Ase64 is at positions 22090624 - 22089985
 mid_micro = (22090624 + 22089985)/2
 
