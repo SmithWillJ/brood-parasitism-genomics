@@ -33,7 +33,7 @@ library(ggh4x)
 d <- rep('', 188)
 dput(d)
 
-sampleinfo <- read_csv("/filepath/to/sample_info4.csv")
+sampleinfo <- read_csv("/filepath/to/sample_info_GeneFlow.csv")
 
 LatitudeInds <- admixdata %>% 
   dplyr::select(pop,ind) %>% 
@@ -63,21 +63,21 @@ admixdata_plot <- admixdata_plot %>%
 ggsave('admix.png', plot = admixture, path = '~/Desktop', dpi = 600, width = 13, height = 8, unit = 'in')
 
 
-plotQMultiline(Admixqlist2, spl = 188, lpp = 1,showindlab = TRUE, outputfilename = "Admix2FINAL",
+plotQMultiline(Admixqlist2, spl = 190, lpp = 1,showindlab = TRUE, outputfilename = "Admix2FINAL",
                useindlab = TRUE, indlabsize = 4.7, 
                dpi = 600, grplabsize = 5, grplabbgcol = "black", grplabcol = "white", indlabspacer = 0.2,
                barsize = 1, imgtype = "jpeg", exportpath = getwd(), grpmean = FALSE,
                clustercol = c("#A765d0","#82AB60"), barbordersize = 0.2, barbordercolour = "white"  ,
                width = 15, height = 5)
 
-plotQMultiline(Admixqlist3, spl = 188, lpp = 1,showindlab = TRUE, outputfilename = "Admix3FINAL",
+plotQMultiline(Admixqlist3, spl = 190, lpp = 1,showindlab = TRUE, outputfilename = "Admix3FINAL",
                useindlab = TRUE, indlabsize = 4.7, 
                dpi = 600, grplabsize = 5, grplabbgcol = "black", grplabcol = "white", indlabspacer = 0.2,
                barsize = 1, imgtype = "jpeg", exportpath = getwd(), grpmean = FALSE,
                clustercol = c("pink","#82AB60","#A765d0"), barbordersize = 0.2, barbordercolour = "white"  ,
                width = 15, height = 5)
 
-plotQMultiline(Admixqlist4, spl = 188, lpp = 1,showindlab = TRUE, outputfilename = "Admix4FINAL",
+plotQMultiline(Admixqlist4, spl = 190, lpp = 1,showindlab = TRUE, outputfilename = "Admix4FINAL",
                useindlab = TRUE, indlabsize = 4.7, 
                dpi = 600, grplabsize = 5, grplabbgcol = "black", grplabcol = "white", indlabspacer = 0.2,
                barsize = 1, imgtype = "jpeg", exportpath = getwd(), grpmean = FALSE,
