@@ -1,6 +1,8 @@
 #########################################################################
 #########################################################################
-#### (p)RDA ANALYSIS - Reed Warbler parasitism - Will Smith 2024 ########
+#### (p)RDA ANALYSIS - Reed Warbler parasitism - Will Smith 2025 ########
+######## Also plot LFMM results and (p)RDA and BayeScEnv onto ###########
+######## a Manhattan plot ###############################################
 #########################################################################
 ### adapted from: https://popgen.nescent.org/2018-03-27_RDA_GEA.html ####
 #########################################################################
@@ -24,7 +26,7 @@ library(LEA)
 
 ### Read in the genomic data. ###
 
-snp<-read.geno("file/path/to/populations.snps.geno")
+snp<-read.geno("/filepath/to/populations.snps.geno")
 
 ### Print dimensions of the genomic data ###
 
@@ -32,7 +34,7 @@ dim(snp)
 
 ### Read in the environmental data (removing the first column, and printing the structure) ###
 
-env <- read.csv("/file/path/to/sample_info2.csv")
+env <- read.csv("/filepath/to/sample_info2.csv")
 env <- env[,-1]
 str(env)
 
@@ -68,7 +70,7 @@ test.rda
 RsquareAdj(test.rda)
 
 ### This constrained ordination explains a tiny amount of total variation, ###
-### But this is expected - most SNPs are going to be neutral ###
+### about 0.9%. But this is expected - most SNPs are going to be neutral ###
 ### or correlate with other environmental variables ###
 
 ### Summarise eigenvalues ###
@@ -90,8 +92,8 @@ signif.full
 signif.axis <- anova.cca(test.rda, by = "axis", parallel = getOption("mc.cores"))
 signif.axis
 
-### Check Variance Inflation Factors of predictors #######
-### multicollinearity should not be an issue ###
+### Check Variance Inflation Factors of predictors - they #######
+### are below 10, so multicollinearity should not be an issue ###
 
 vif.cca(test.rda)
 
@@ -119,12 +121,12 @@ PLOT_A <- ggplot() +
   geom_point(data = ind_gg_data, aes(x = RDA1, y = RDA2, col = as.character(location))) +
   geom_segment(data = loadings, aes(x = 0, y = 0, xend = RDA1*0.1, yend = RDA2*0.1), 
                                     arrow = arrow(length = unit(1/2, "picas")), color = "black") +
-  geom_text(data = loadings, aes(x = RDA1*0.13, y = RDA2*0.13), label = c('Parasitism', 'Latitude', 'BIO4', 'BIO8', 'BIO13', 'BIO15'), fontface = 'bold') +
+  geom_text(data = loadings, aes(x = RDA1*0.13, y = RDA2*0.13), label = c('Parasitism', 'BIO4', 'BIO8', 'BIO13', 'BIO15', 'LAT'), fontface = 'bold') +
   scale_color_manual(values = c('brown', 'salmon', 'darkorange2', 'burlywood', 'darkgrey',
-                                'violet', 'deeppink2', 'orange', 'coral', 'darkgreen', 'brown1','green', 'pink',
-                                'lightblue', 'lightgreen', 'purple', 'blue', 'darkblue', 'aquamarine','red'),
-                       labels = c("FR", "ES", "DEDG", "DEMH", "NO", "DK", "MT", "IT", "CZLU", "PL", "HR", "SK", "LT", "FINW", "ROLS", "EE", "FINM", "FINE", "RODD","TR")) +
-  xlab("RDA1 (23.90%)") + ylab("RDA2 (17.04%)") + theme_bw() +
+                                'violet', 'deeppink2', 'orange', 'coral', 'darkgreen', "brown1","green", 'pink',
+                                'lightblue', 'lightgreen', 'purple', 'blue', 'darkblue', 'aquamarine',"red"),
+                       labels = c("FR", "ES", "DEDG", "DEMH", "NO", "DK", "MT", "IT", "CZLU", "PL","HR","SK", "LT", "FINW", "ROLS", "EE", "FINM", "FINE", "RODD","TR")) +
+  xlab("RDA1 (24.07%)") + ylab("RDA2 (17.07%)") + theme_bw() +
   theme(legend.position = 'none') + theme(panel.grid = element_blank()) + theme(axis.text = element_text(size = 11),
                                                                                       axis.title = element_text(size = 20))
 
@@ -144,6 +146,7 @@ hist(load.rda[,2], main="Loadings on RDA2")
 hist(load.rda[,3], main="Loadings on RDA3")
 hist(load.rda[,4], main="Loadings on RDA4")
 hist(load.rda[,5], main="Loadings on RDA5")
+
 
 ### Define a function to get values in vector 'x' which are outside ###
 ### of 'z' standard deviations from the mean ###
@@ -187,7 +190,7 @@ colnames(cand1) <- colnames(cand2) <- colnames(cand3) <- colnames(cand4) <- coln
 
 ### Combine dataframes, and make sure that the 'snp' column is of type 'character' ###
 
-cand <- rbind(cand1, cand2, cand3, cand4, cand5)
+cand <- rbind(cand1, cand2, cand3, cand4,  cand5)
 cand$snp <- as.character(cand$snp)
 
 ### Get the correlations of each candidate SNP with our predictors ###
@@ -196,6 +199,7 @@ foo <- matrix(nrow=(ncand), ncol=6)
 colnames(foo) <- c("parasit", "lat", "bio4", "bio8", "bio13", "bio15")
 cand$snp <- gsub('col', '', cand$snp)
 cand$snp <- as.numeric(cand$snp)
+
 for (i in 1:length(cand$snp)) {
   nam <- cand[i,2]
   snp.gen <- snp[,nam]
@@ -216,11 +220,11 @@ table(foo[foo[,1]==1,2]) # no duplicates on axis 1
 
 table(foo[foo[,1]==2,2]) #  no duplicates on axis 2
 
-table(foo[foo[,1]==3,2]) # duplicates on axis 3
+table(foo[foo[,1]==3,2]) # no duplicates on axis 3
 
 table(foo[foo[,1]==4,2]) # duplicates on axis 4
 
-table(foo[foo[,1]==5,2]) # duplicates on axis 5
+table(foo[foo[,1]==5,2]) # no duplicates on axis 5
 
 ## Remove duplicates ###
 
@@ -228,7 +232,7 @@ cand <- cand[!duplicated(cand$snp),] # remove duplicate detections to retain onl
 
 ### Now let's look at which predictors each candidate SNP is most strongly correlated with ###
 ### This code iterates through the rows of 'cand', identifies the variables with the ###
-### maximum correlation, and stores these results in columns 9 and 10 ###
+### maximum correlation, and stores these results ###
 
 for (i in 1:length(cand$snp)) {
   bar <- cand[i,]
@@ -243,32 +247,12 @@ colnames(cand)[11] <- "correlation"
 
 table(cand$predictor)
 
-### 41 are associated with parasitism ###
+### 37 are associated with parasitism ###
 
 ParaSNPs <- cand[cand$predictor == "parasit","snp"]
 values <- unique(ParaSNPs)
 values_para <- unique(ParaSNPs)
 values
-
-LatSNPs <- cand[cand$predictor == "lat","snp"]
-valuesLat <- unique(LatSNPs)
-values_Lat <- unique(LatSNPs)
-valuesLat
-
-Bio4SNPs <- cand[cand$predictor == "bio4","snp"]
-valuesBio4 <- unique(Bio4SNPs)
-values_Bio4 <- unique(Bio4SNPs)
-valuesBio4
-
-Bio8SNPs <- cand[cand$predictor == "bio8","snp"]
-valuesBio8 <- unique(Bio8SNPs)
-values_Bio8 <- unique(Bio8SNPs)
-valuesBio8
-
-Bio13SNPs <- cand[cand$predictor == "bio13","snp"]
-valuesBio13 <- unique(Bio13SNPs)
-values_Bio13 <- unique(Bio13SNPs)
-valuesBio13
 
 ### We will finish off by looking at the RDA plots and working out where ###
 ### these SNPs fall out in the ordination space ###
@@ -278,11 +262,11 @@ valuesBio13
 sel <- cand$snp
 env <- cand$predictor
 env[env=="parasit"] <- 'red'
-env[env=="lat"] <- 'grey'
 env[env=="bio4"] <- 'forestgreen'
 env[env=="bio8"] <- 'green'
 env[env=="bio13"] <- 'lightgreen'
 env[env=="bio15"] <- 'darkgreen'
+env[env=="lat"] <- 'limegreen'
 
 ### Assign colours to candidate SNPs, and make non-candidate SNPs drab ###
 
@@ -294,11 +278,11 @@ for (i in 1:length(sel)) {
   col.pred[foo] <- env[i]
 }
 
-col.pred[grep("col",col.pred)] <- '#f1eef6' # non-candidate SNPs
+col.pred[grep("col",col.pred)] <- '#f1eef6'
 empty <- col.pred
-empty[grep("#f1eef6",empty)] <- rgb(0,1,0, alpha=0) # transparent
+empty[grep("#f1eef6",empty)] <- rgb(0,1,0, alpha=0)
 empty.outline <- ifelse(empty=="#00FF0000","#00FF0000","gray32")
-bg <- c('red','grey','forestgreen','green','lightgreen','darkgreen')
+bg <- c('red','forestgreen','green','lightgreen','darkgreen','limegreen')
 
 str(bg)
 str(env)
@@ -309,7 +293,7 @@ plot(test.rda, type="n", scaling=3, xlim=c(-1,1), ylim=c(-1,1))
 points(test.rda, display="species", pch=21, cex=1, col="gray32", bg = col.pred, scaling=3)
 points(test.rda, display="species", pch=21, cex=1, col=empty.outline, bg=empty, scaling=3)
 text(test.rda, scaling=3, display="bp", col="#0868ac", cex=1)
-legend("bottomright", legend=c("parasit","lat","bio4","bio8","bio13","bio15"), bty="n", col="gray32", pch=21, cex=1, pt.bg=bg)
+legend("bottomright", legend=c("parasit","bio4","bio8","bio13","bio15","lat"), bty="n", col="gray32", pch=21, cex=1, pt.bg=bg)
 
 ### Plot for RDA 1 versus RDA 3 ###
 
@@ -317,7 +301,7 @@ plot(test.rda, type="n", scaling=3, xlim=c(-1,1), ylim=c(-1,1), choices=c(1,3))
 points(test.rda, display="species", pch=21, cex=1, col="gray32", bg=col.pred, scaling=3, choices=c(1,3))
 points(test.rda, display="species", pch=21, cex=1, col=empty.outline, bg=empty, scaling=3, choices=c(1,3))
 text(test.rda, scaling=3, display="bp", col="#0868ac", cex=1, choices=c(1,3))
-legend("bottomright", legend=c("parasit","lat","bio4","bio8","bio13","bio15"), bty="n", col="gray32", pch=21, cex=1, pt.bg=bg)
+legend("bottomright", legend=c("parasit","bio4","bio8","bio13","bio15","lat"), bty="n", col="gray32", pch=21, cex=1, pt.bg=bg)
 
 #########################################################################
 #########################################################################
@@ -338,25 +322,13 @@ gen_data
 PCs <- scores(gen_data, choices = c(1:1), display = "sites", scaling=0)
 library(tidyverse)
 PCs <- as.data.frame(PCs)
-PCs <- PCs%>%rownames_to_column(var = ("Selected"))
+PCs <- PCs %>% rownames_to_column(var = ("Selected"))
 env_gen <- left_join(as.data.frame(env),PCs,by=("Selected"))
 dim(env_gen)
 
-### Full model ###
-
-pRDAfull <- rda(snp ~ PC1 + parasit + lat + bio4 + bio8 + bio13 + bio15, env_gen)
-RsquareAdj(pRDAfull)
-anova(pRDAfull)
-
-### Pure population genetic structure model ###
-
-pRDAstruct <- rda(snp ~ PC1 + Condition(parasit + lat + bio4 + bio8 + bio13 + bio15), env_gen)
-RsquareAdj(pRDAstruct)
-anova(pRDAstruct)
-
 #### Genome scan using pRDA #####
 
-RDA_env <- rda(snp ~ parasit + lat + bio4 + bio8 + bio13 + bio15 + Condition(PC1), env_gen, scale=T, set.seed(1))
+RDA_env <- rda(snp ~ parasit + bio4 + bio8 + bio13 + bio15 + lat + Condition(PC1), env_gen, scale=T, set.seed(1))
 screeplot(RDA_env, main="Eigenvalues of contrained axes, pRDA")
 RDA_env
 RsquareAdj(RDA_env)
@@ -389,12 +361,12 @@ PLOT_B <- ggplot() +
   geom_point(data = ind_gg_data, aes(x = RDA1, y = RDA2, col = as.character(location))) +
   geom_segment(data = loadings, aes(x = 0, y = 0, xend = RDA1*0.1, yend = RDA2*0.1), 
                arrow = arrow(length = unit(1/2, "picas")), color = "black") +
-  geom_text(data = loadings, aes(x = RDA1*0.13, y = RDA2*0.13), label = c('Parasitism', 'Latitude', 'BIO4', 'BIO8', 'BIO13', 'BIO15'), fontface = 'bold') +
+  geom_text(data = loadings, aes(x = RDA1*0.13, y = RDA2*0.13), label = c('Parasitism', 'BIO4', 'BIO8', 'BIO13', 'BIO15', 'LAT'), fontface = 'bold') +
   scale_color_manual(values = c('brown', 'salmon', 'darkorange2', 'burlywood', 'darkgrey',
-                                'violet', 'deeppink2', 'orange', 'coral', 'darkgreen', 'brown1','green', 'pink',
-                                'lightblue', 'lightgreen', 'purple', 'blue', 'darkblue', 'aquamarine','red'),
-                     labels = c("FR", "ES", "DEDG", "DEMH", "NO", "DK", "MT", "IT", "CZLU", "PL", "HR", "SK", "LT", "FINW", "ROLS", "EE", "FINM", "FINE", "RODD","TR")) +
-  xlab("RDA1 (19.12%)") + ylab("RDA2 (18.09%)") + theme_bw() +
+                                'violet', 'deeppink2', 'orange', 'coral', 'darkgreen', "brown1","green", 'pink',
+                                'lightblue', 'lightgreen', 'purple', 'blue', 'darkblue', 'aquamarine',"red"),
+                     labels = c("FR", "ES", "DEDG", "DEMH", "NO", "DK", "MT", "IT", "CZLU", "PL","HR","SK", "LT", "FINW", "ROLS", "EE", "FINM", "FINE", "RODD","TR")) +
+  xlab("RDA1 (19.23%)") + ylab("RDA2 (18.23%)") + theme_bw() +
   theme(legend.position='none') + theme(panel.grid = element_blank()) + theme(axis.text = element_text(size = 11),
                                                                                       axis.title = element_text(size = 20))
 PLOT_B
@@ -467,7 +439,12 @@ valuesB <- unique(ParaSNPsB)
 valuesB
 values
 
-all_values <- as.data.frame(c(values, valuesB)) 
+all_values <- as.data.frame(c(values, valuesB)) %>% distinct() 
+colnames(all_values) <- 'snpID'
+bayescenv <- data.frame(snpID = c('4901'))
+lfmm_snps <- data.frame(snpID = c('8582', '11112','11828'))
+all_values <- rbind(all_values, bayescenv, lfmm_snps)
+candidates <- all_values
 write_delim(all_values, '~/Desktop/candidate_snps.txt', delim = ' ')
 
 shared_values <- intersect(values, valuesB)
@@ -483,24 +460,17 @@ cat("Number found in valuesB only:", length(valuesB_only), "\n")
 
 ########
 
-## Manhattan Plot of LFMM results - with (p)RDA SNPs also highlighted #####
+## Manhattan Plot of LFMM results - with (p)RDA and BayeScEnv SNPs also highlighted #####
 
 # Load necessary libraries
 library(ggplot2)
 library(dplyr)
 
 # Read in the data
-ooglie_booglies <- read.csv('/Users/williamsmith/Desktop/Reed_Warblers_Parasitism/Reed_Warbler_Figures/Genes_and_polygenic_scores/ooglie_booglies.csv')
+DATA <- read.csv('/filepath/to/data/DATA.csv')
 
 # Define model and candidates
 model <- "parasit"
-candidates <- c("2735", "3027", "5216", "5970", "8689", "10153", "11584","12411",
-                "12616","12898","2753","6811","9252","10611","11818","363","392",
-                "1993", "2095", "2133", "2963","3515", "3546", "3932","4026","4076",
-                "4764", "5110","5890","5910","6225", "8538","9665","9769", "9831","11110","11114","11761", "11767","12547","13160","9116","3512","3828","3973",
-                "4418", "12649", "9806","4602")
-candidates
-
 # Create a function to label selected points
 label_points <- function(df, x_col, y_col, label_col, labels) {
   df <- df %>%
@@ -514,7 +484,8 @@ label_points <- function(df, x_col, y_col, label_col, labels) {
 library(tidyverse)
 
 # Add positional index to the dataset; then add alternating colour for chromosome;
-data <- read_csv('/file/path/to/data.csv') %>%
+DATA <- read_csv('/filepath/to/data/DATA.csv') %>%
+  mutate(candidate = ifelse(V4 %in% candidates$snpID, 'yes', 'no')) %>%
   separate(V1, into = c('super', 'chrom'), sep = '_') %>%
   mutate(chrom = str_pad(chrom, width = 2, pad = 0)) %>%
   mutate(chrom = ifelse(chrom == '0Z', 30, ifelse(chrom == '0W', 31, chrom))) %>%
@@ -524,28 +495,30 @@ data <- read_csv('/file/path/to/data.csv') %>%
   group_by(chrom) %>%
   mutate(min = min(index), max = max(index)) %>%
   mutate(centre = (max + min)/2) %>%
-  mutate(candidate = ifelse(V4 %in% candidates, 'yes', 'no')) %>%
-  mutate(magic = ifelse(V4 %in% c("10153", "3027", "8689", "9831", "5890", "3515", "392", "11761", "363", "3546", "11110"), 'magic', 'nie'),
-         bayes = ifelse(V4 %in% c("9806","4602"), 'bayes', 'nie'))
+  mutate(candidate = ifelse(V4 %in% candidates$snpID, 'yes', 'no')) %>%
+  mutate(magic = ifelse(V4 %in% c("10150","3028","8690","360","5891","3512","388","11765","3543","8582","11112","11828"), 'magic', 'nie'),
+         bayes = ifelse(V4 %in% c('9805', '4901'), 'bayes', 'nie'))
 
 # Create the plot
-gene_names <- read_delim('/file/path/to/just_genes.txt') %>% rename(V4 = snpID)
-ooglie_booglies <- data %>% left_join(gene_names, by = 'V4') 
-top_hits <- data %>% filter(candidate == 'yes') %>% ungroup() %>% slice_max(-log10(parasit), n = 10)
+gene_names <- read_delim('/filepath/to/just_genes.txt') %>% rename(V4 = snpID)
+DATA <- DATA %>% left_join(gene_names, by = 'V4') 
+top_hits <- DATA %>% filter(candidate == 'yes') %>% ungroup() %>% slice_max(-log10(parasit), n = 10)
+gene_plotting <- read_csv('~/filepath/to/Gene_Plotting.csv', col_select = c('Name', 'Number', 'Value')) %>%
+  rename(V4 = Number) %>%
+  left_join(DATA, by = 'V4')
+gene_plotting_top15 <- gene_plotting %>% drop_na() %>% arrange(parasit) %>% slice(1:15)
 
 library(ggtext)
-PLOT_C <- ggplot(data = data, aes(x = index, y = -log10(parasit), col = (as.numeric(chrom) %% 2 == 0))) + 
+PLOT_C <- ggplot(data = DATA, aes(x = index, y = -log10(parasit), col = (as.numeric(chrom) %% 2 == 0))) + 
   geom_point() + labs(y = "-log<sub>10</sub>(<i>p</i>)") +
-  geom_point(data = data %>% filter(candidate == 'yes'), color = 'blue') +
-  geom_point(data = data %>% filter(candidate == 'yes') %>% ungroup() %>% slice_max(-log10(parasit), n = 11), size = 3, shape = 1, col = 'black') +
-  geom_point(data = data %>% filter(magic == 'magic'), color = 'red') +
-  geom_point(data = data %>% filter(bayes == 'bayes'), color = 'magenta') +
-  ggrepel::geom_text_repel(data = data %>% filter(candidate == 'yes') %>% ungroup() %>% slice_max(-log10(parasit), n = 26), aes(label = Name), col = 'black', size =20/.pt) +
-  scale_color_manual(values = c('grey84', 'grey44'), guide = 'none') +
-  scale_y_continuous(limits = c(0, 7), breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+  geom_point(data = gene_plotting, aes(x = index, y = -log10(parasit), fill = factor(Value)), size = 3, shape = 21, col = 'black') +
+  scale_color_manual(values = c("FALSE" = "grey84", "TRUE" = "grey44"), guide = 'none') +
+  scale_fill_manual(values =  c("1" = "pink", "2" = "hotpink", '3' = 'red'), guide = 'none') +
+  ggrepel::geom_text_repel(data = gene_plotting_top15, aes(x = index, y = -log10(parasit), label = `Name.x`), col = 'black') +
+  scale_y_continuous(limits = c(0, 7), breaks = c(0, 1, 2, 3, 4, 5,6)) +
   scale_x_continuous(name = 'Chromosome',label = c(1,2,3,4,5,6,7,8,9,10,11,12,
                                                    13,14,15,16,17,18,19,20,
-                                                   21,22,23,'','','','','','','Z', 'W'), breaks = unique(data$centre)) +
+                                                   21,22,23,'','','','','','','Z', 'W'), breaks = unique(DATA$centre)) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         axis.title.y = element_markdown(), axis.text = element_text(size = 11), 
@@ -561,18 +534,69 @@ PLOT_LEG <- ggplot() +
                arrow = arrow(length = unit(1/2, "picas")), color = "black") +
   geom_text(data = loadings, aes(x = RDA1*0.13, y = RDA2*0.13), label = c('Parasitism', 'BIO1', 'BIO4', 'BIO8', 'BIO13', 'BIO17'), fontface = 'bold') +
   scale_color_manual(name = 'Location',values = c('brown', 'salmon', 'darkorange2', 'burlywood', 'darkgrey',
-                                                  'violet', 'deeppink2', 'orange', 'coral', 'darkgreen', 'brown1','green', 'pink',
-                                                  'lightblue', 'lightgreen', 'purple', 'blue', 'darkblue', 'aquamarine','red'),
-                     labels = c("FR", "ES", "DEDG", "DEMH", "NO", "DK", "MT", "IT", "CZLU", "PL", "HR", "SK", "LT", "FINW", "ROLS", "EE", "FINM", "FINE", "RODD","TR")) +
-  xlab("RDA1 (19.04%)") + ylab("RDA2 (18.08%)") + theme_bw() +
-  theme(legend.title = element_text(size = 10),
+                                                  'violet', 'deeppink2', 'orange', 'coral', 'darkgreen', "brown1","green", 'pink',
+                                                  'lightblue', 'lightgreen', 'purple', 'blue', 'darkblue', 'aquamarine',"red"),
+                     labels = c("FR", "ES", "DEDG", "DEMH", "NO", "DK", "MT", "IT", "CZLU", "PL","HR","SK", "LT", "FINW", "ROLS", "EE", "FINM", "FINE", "RODD","TR")) +
+  xlab("RDA1 (24.07%)") + ylab("RDA2 (17.07%)") + theme_bw() +
+  theme(legend.title = element_text(size = 14),
         legend.position = 'top',
-        legend.text = element_text(size = 10)) + theme(panel.grid = element_blank()) + theme(axis.text = element_text(size = 11),
+        legend.text = element_text(size = 14)) + theme(panel.grid = element_blank()) + theme(axis.text = element_text(size = 11),
                                                                                       axis.title = element_text(size = 20)) +
-  guides(color = guide_legend(nrow = 1, size = 3))
+  guides(color = guide_legend(nrow = 2, size = 4))
 PLOT_LEG
 
 leg <- ggpubr::get_legend(PLOT_LEG)
+
+
+#### SNP Density plot
+snp_density_data <- read_csv('/filepath/to/data/DATA.csv') %>%
+  separate(V1, into = c('super', 'chrom'), sep = '_') %>%
+  mutate(chrom = str_pad(chrom, width = 2, pad = 0)) %>%
+  mutate(chrom = ifelse(chrom == '0Z', 30, ifelse(chrom == '0W', 31, chrom))) %>%
+  arrange(chrom) %>%
+  mutate(index = row_number()) %>%
+  filter(super == 'SUPER') %>%
+  dplyr::select(chrom, V2, index) %>%
+  rename(pos = V2) %>%
+  dplyr::select(index, chrom, pos) 
+
+## Make 1MB windows
+windows_1mb <- snp_density_data %>%
+  mutate(window = floor(pos / 1e6)) %>%
+  group_by(chrom, window) %>%
+  summarise(snp_count = n(), .groups = 'drop') %>%
+  mutate(window_id = row_number()) %>%
+  mutate(start = window * 1e6, end = (window + 1) * 1e6 - 1)
+
+### which SNP in which window?
+snp_with_window <- snp_density_data %>%
+  left_join(windows_1mb, by = "chrom") %>%  # Match by chromosome
+  filter(pos >= start & pos <= end)
+
+### prepare for plotting
+# add chromosomal centre data to tiles.
+snp_with_window <- snp_with_window %>%
+  ungroup() %>%
+  left_join(DATA %>% dplyr::select(index, centre))
+
+(DENSITY_PLOT <- ggplot(snp_with_window, aes(x = index, y = 1)) + geom_tile(aes(fill = snp_count)) +
+    scale_fill_gradientn(
+      colours = c('blue', 'lightblue', 'white', 'khaki', 'yellow'), 
+      name = "SNP Count") + 
+    scale_colour_gradientn(
+      colours = c('blue', 'lightblue', 'white', 'khaki', 'yellow')) +
+  scale_x_continuous(name = 'Chromosome',label = c(1,2,3,4,5,6,7,8,9,10,11,12,
+                                                   13,14,15,16,17,18,19,20,
+                                                   21,22,23,'','','','','','','Z', 'W'), 
+                     breaks = unique(snp_with_window$centre)) +
+  theme_void() +
+  theme(legend.position = 'bottom'))
+
+library(patchwork)
+
+PLOT_C <- PLOT_C / DENSITY_PLOT + plot_layout(heights = c(0.9, 0.1))
+PLOT_C
+
 ### Plot the overall 'Figure 2', which combines the RDA, pRDA, and LFMM plots:
 
 library(cowplot)
@@ -581,6 +605,6 @@ library(tidyverse)
 leg <- plot_grid(leg)
 PLOT_AB <- plot_grid(PLOT_A,PLOT_B, labels = 'AUTO', nrow = 1)
 PLOT_AB <- plot_grid(leg, PLOT_AB, rel_heights = c(0.10, 0.90), ncol = 1)
-IMAGE <- plot_grid(PLOT_AB,PLOT_C, ncol = 1, labels = c('', 'C'))
+IMAGE <- plot_grid(PLOT_C, PLOT_AB, ncol = 1, labels = c('A', 'B', 'C')) 
 IMAGE
-ggsave("/file/path/to/IMAGE.pdf", plot = IMAGE, device = "pdf", width = 15, height = 10)
+ggsave("/filepath/to/Desktop/IMAGE.pdf", plot = IMAGE, device = "pdf", width = 15, height = 10)
