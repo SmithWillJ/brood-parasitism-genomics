@@ -53,7 +53,7 @@ sample_info2$parasit <- as.numeric(gsub(",",".",sample_info2$parasit))
 head(sample_info2)
 ##### For each population, we will extract bioclimatic variables that were downloaded from worldclim.org. First we define the variables we want, and then read them in. The data are in a geospatial raster format. First take in all variables, get values and then test for correlations.
 predNames <- c("bio1","bio2","bio3","bio4","bio5","bio6","bio7","bio8","bio9","bio10","bio11","bio12","bio13","bio14","bio15","bio16","bio17","bio18","bio19")
-presClim <- stack(paste("/scratch/project_2001434/2021+2017RAD_91bp/analyses/LEA_analyses/wc2.1_30s_bio/", predNames, ".tif", sep=""))
+presClim <- stack(paste("/filepath/to/wc2.1_30s_bio/", predNames, ".tif", sep=""))
 #### Plot the bio4 layer and our population locations to see what it looks like. Try plotting the variables…
 plot(presClim[["bio1"]], xlim=c(-15,45), ylim=c(35,68))
 points(sample_info2[,c("lon", "lat")])
@@ -168,14 +168,14 @@ print(candidates)
 # Check the number of rows in the SNP position file
 str(adjusted_p)
 summary(adjusted_p)
-snp_positions <- read.table("/scratch/project_2001434/retrieved_2021+2017RAD_91bp/2021+2017RAD_91bp/populations_runs/populations_run3_GEA_will/POS_FIL_EDITED.012.pos")
+snp_positions <- read.table("/filepath/to/posfile/POS_FIL_EDITED.012.pos")
 str(snp_positions)
 manhattan_df <- cbind(snp_positions,adjusted_p)
 str(manhattan_df)
 manhattan_df$V4 <- rownames(manhattan_df)
 
 library(tidyverse)
-write_csv(manhattan_df, "ooglie_booglies.csv")
+write_csv(manhattan_df, "DATA.csv")
 
 # Manhattan plot
 model <- "parasit"
