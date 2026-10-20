@@ -4,21 +4,20 @@
 #SBATCH --error=process_radtags_script_error.txt
 #SBATCH --account=project_xxxx
 
-module load biokit
+module load R-uoneasy/4.2.1-foss-2022a
+module load Stacks/2.62-foss-2023a
 
-cd ./
+process_radtags -f /filepath/to/raw/sequence_archive_lane1.fastq.gz -o /filepath/to/2017_lane1/ -b /filepath/to/info/2017_barcodes -e sbfI -r -c -q -t 91
 
-process_radtags -f /filepath/to/sequence_archive_lane1.fastq.gz -o /filepath/to/2017_lane1/ -b /filepath/to/2017_barcodes -e sbfI -r -c -q -t 91
+process_radtags -f /filepath/to/raw/sequence_archive_lane2.fastq.gz -o /filepath/to/2017_lane2/ -b /filepath/to/2017_barcodes -e sbfI -r -c -q -t 91
 
-process_radtags -f /filepath/to/sequence_archive_lane2.fastq.gz -o /filepath/to/2017_lane2/ -b /filepath/to/2017_barcodes -e sbfI -r -c -q -t 91
+process_radtags -f /filepath/to/raw/2021RADsequences_plate1_lane1.fastq.gz -o /filepath/to/2021_plate1_lane1/ -b /filepath/to/info/2021_plate1_barcodes -e sbfI -r -c -q -t 91
 
-process_radtags -f /filepath/to/2021RADsequences_plate1_lane1.fastq.gz -o /filepath/to/2021_plate1_lane1/ -b /filepath/to/2021_plate1_barcodes -e sbfI -r -c -q -t 91
+process_radtags -f /filepath/to/raw/2021RADsequences_plate1_lane2.fastq.gz -o /filepath/to/2021_plate1_lane2/ -b /filepath/to/info/2021_plate1_barcodes -e sbfI -r -c -q -t 91
 
-process_radtags -f /filepath/to/2021RADsequences_plate1_lane2.fastq.gz -o /filepath/to/2021_plate1_lane2/ -b /filepath/to/2021_plate1_barcodes -e sbfI -r -c -q -t 91
+process_radtags -f /filepath/to/raw/2021RADsequences_plate2_lane1.fastq.gz -o /filepath/to/2021_plate2_lane1/ -b /filepath/to/info/2021_plate2_barcodes -e sbfI -r -c -q -t 91
 
-process_radtags -f /filepath/to/2021RADsequences_plate2_lane1.fastq.gz -o /filepath/to/2021_plate2_lane1/ -b /filepath/to/2021_plate2_barcodes -e sbfI -r -c -q -t 91
-
-process_radtags -f /filepath/to/2021RADsequences_plate2_lane2.fastq.gz -o /filepath/to/2021_plate2_lane2/ -b /filepath/to/2021_plate2_barcodes -e sbfI -r -c -q -t 91
+process_radtags -f /filepath/to/raw/2021RADsequences_plate2_lane2.fastq.gz -o /filepath/to/2021_plate2_lane2/ -b /filepath/to/info/2021_plate2_barcodes -e sbfI -r -c -q -t 91
 
 ### The above script rescues barcodes and RAD-tag cutsites (-r), cleans data by removing any read with an uncalled base (-c), discards reads with a low quality score (-q), and truncates the final read length to 91 (-t 91).
 
@@ -51,9 +50,10 @@ ls | sed -n 's/\.fq.gz$//p' > namelist_2021+2017
 
 module load bwa/0.7.17
 
-name=$(sed -n ${SLURM_ARRAY_TASK_ID}p /filepath/to/namelist_2021+2017)
+name=$(sed -n ${SLURM_ARRAY_TASK_ID}p /gpfs01/home/mbzwjs/Reed_Warblers_2026/info/namelist_2021+2017)
 
-bwa mem -M /filepath/to/bAcrSci1_1.20210512.curated_primary.fasta \
-/filepath/to/all_samples_combined/${name}.fq.gz | samtools sort -o /filepath/to/outputs/${name}.bam
+bwa mem -M -t ${SLURM_CPUS_PER_TASK} \
+/filepath/to/ncbi_dataset/data/GCA_910950805.1/GCA_910950805.1_RW_assembly_genomic.fna \
+/filepath/to/all_samples_combined/${name}.fq.gz | samtools sort -@ ${SLURM_CPUS_PER_TASK} -o /filepath/to/alignments_Will_Trial/${name}.bam -
 
 ### We now have per-individual ‘bam’ alignment files.
