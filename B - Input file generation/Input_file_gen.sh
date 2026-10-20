@@ -1,117 +1,104 @@
-####1. Generate VCF for gene flow and population structure analysis*
-
 #!/bin/bash
+#### 1. Generate VCF for gene flow and population structure analysis
+####    (repeat with different heterozygosity settings)
+
 #SBATCH --job-name=Gene_Flow_VCF_Gen
 #SBATCH --output=Gene_Flow_VCF_out.txt
 #SBATCH --error=Gene_Flow_VCF_error.txt
 #SBATCH --account=project_xxxxx
 
-#### First, run ‘ref_map.pl’:
+set -euo pipefail
 
-ref_map.pl --samples /file_path_to_list_of_sample_alignments/ --popmap /filepath/to/popmap/ -o /filepath/to/outputs/ -X "populations: --vcf"
+module load R-uoneasy/4.2.1-foss-2022a      # not used in this script
+module load Stacks/2.62-foss-2023a          # ref_map.pl, populations
+module load VCFtools/0.1.16-GCC-12.3.0      # VCF stats and filtering
+module load BCFtools/1.18-GCC-12.3.0        # genotype masking, sorting, indexing
+module load PLINK/1.9b_6.21-x86_64          # LD pruning
 
-cd /filepath/to/populations/runs/
+cd /filepath/populations_runs
 
-module load biokit
-mkdir populations_run1_flow
-mkdir populations_run2_flow
-mkdir populations_run3_flow
+# Output directory for this parameter set
 
-populations -P /filepath/for/refmap/outputs/ --popmap /filepath/to/popmap -O /filepath/to/populations_run1_flow/ --vcf
+mkdir -p /filepath/populations_runs/refmap_outputs_GEA_auto_0.5
 
-#### We now have an unfiltered VCF in the ‘populations_run1_flow' folder. Let’s use VCFtools to get some statistics on this VCF:
+# run the Stacks pipeline
 
-cd /filepath/to/populations_run1_flow/
+ref_map.pl --samples /filepath/alignments_Will_Trial --popmap /filepath/info/GEA_PopMap -o /filepath/populations_runs/refmap_outputs_GEA_auto_0.5 -X "populations: --vcf"
 
-module load vcftools
+# One directory per populations run
 
-vcftools --vcf populations.snps.vcf --depth --out test-depth
-vcftools --vcf populations.snps.vcf --site-mean-depth --out test-mean-depth
-vcftools --vcf populations.snps.vcf --missing-site --out test_missing-site
-vcftools --vcf populations.snps.vcf --missing-indv --out test_missing-indv
-vcftools --vcf populations.snps.vcf --freq2 --out test_freq
+mkdir -p GEA_auto_0.5_run1   # run1: unfiltered baseline, used for QC stats
+mkdir -p GEA_auto_0.5_run2   # run2: depth blacklist applied + HWE stats
+mkdir -p GEA_auto_0.5_run3   # run3: final filtered dataset
 
-#### Now let’s do some depth filtering in VCFtools. First, we should output the sites to be removed:
+# populations with no filters - to get a baseline VCF
+
+populations -P /filepath/populations_runs/refmap_outputs_GEA_auto_0.5 --popmap /filepath/info/GEA_PopMap -O /filepath/populations_runs/GEA_auto_0.5_run1 --vcf
+
+cd /filepath/populations_runs/GEA_auto_0.5_run1
+
+# QC statistics
+
+vcftools --vcf populations.snps.vcf --depth --out test-depth                # mean depth per individual
+vcftools --vcf populations.snps.vcf --site-mean-depth --out test-mean-depth # mean depth per site
+vcftools --vcf populations.snps.vcf --missing-site --out test_missing-site  # missingness per site
+vcftools --vcf populations.snps.vcf --missing-indv --out test_missing-indv  # missingness per individual
+vcftools --vcf populations.snps.vcf --freq2 --out test_freq                 # allele frequencies
+
+# List sites that FAIL the mean-depth window (mean depth <10 or >100).
+# Low depth = unreliable calls; very high depth = likely paralogs/repeats.
+# --removed-sites writes the failing sites to file.removed.sites (CHROM, POS).
 
 vcftools --vcf populations.snps.vcf --min-meanDP 10 --max-meanDP 100 --removed-sites --out vcftools_min-meanDP10_max-meanDP100
 
+# Convert the removed sites into a Stacks blacklist of locus IDs:
+
 grep -f vcftools_min-meanDP10_max-meanDP100.removed.sites populations.sumstats.tsv -F -w | cut -f1 | sort -n | uniq > blacklist_min_meanDP10_max-meanDP100_removed_positions
 
-#### Run ‘populations’ with the blacklist we just made, plus some additional filters, and output HWE. We will output the new VCF in ‘populations_run2_flow’:
+# Re-run populations excluding the depth-blacklisted loci
 
-populations -P /filepath/to/refmap_outputs/ --popmap /filepath/to/popmap -O /filepath/to/populations_run2_flow/ -B /filepath/to/blacklist_min_meanDP10_max-meanDP100_removed_positions --vcf --hwe
+populations -P /filepath/populations_runs/refmap_outputs_GEA_auto_0.5 --popmap /filepath/info/GEA_PopMap -O /filepath/populations_runs/GEA_auto_0.5_run2 -B blacklist_min_meanDP10_max-meanDP100_removed_positions --vcf --hwe
 
-#### Next, we want to output a whitelist of SNPs in HWE in all populations which have more than ten individuals. This is done on the new VCF:
+cd /filepath/populations_runs/GEA_auto_0.5_run2
 
-cd /filepath/to/populations_run2_flow/
+# build a whitelist of SNPs in HWE (p > 0.05) in the listed populations
 
 cat populations.sumstats.tsv | grep -v '^#' | awk '$20 > 0.05 && ($5 == "DEDG" || $5 == "DEMH" || $5 == "EE" || $5 == "FINM" || $5 == "FINE" || $5 == "IT" || $5 == "LT" || $5 == "NO" || $5 == "PL")' | cut -f 1,4 | awk '++a[$1,$2]==1{ print $1,$2 }' OFS='\t' | sort -n > wl_snps_in_hwe_in_all_pops_with_10indv
 
-#### Now let’s run populations again with this new whitelist (i.e. filtering our depth filtered VCF). The VCF which is filtered for depth AND hwe AND MAF AND –R AND heterozygosity is outputted to ‘populations_runs3_flow’:
+# Final populations run with the HWE whitelist and stricter filters
 
-populations -P /filepath/to/refmap_outputs/ --popmap /filepath/to/popmap -O /filepath/to/populations_run3_flow/ -W /filepath/to/wl_snps_in_hwe_in_all_pops_with_10indv -R 1 --min-mac 3 --max-obs-het 0.75 --write-single-snp --vcf
+populations -P /filepath/populations_runs/refmap_outputs_GEA_auto_0.5 --popmap /filepath/info/GEA_PopMap -O /filepath/scripts/populations_runs/GEA_auto_0.5_run3/ -W wl_snps_in_hwe_in_all_pops_with_10indv -R 1 --min-mac 3 --max-obs-het 0.5 --write-single-snp --vcf
 
-cd /filepath/to/populations_run3_flow/
+cd /filepath/populations_runs/GEA_auto_0.5_run3/
 
-module load plink/1.90
+# Keep only the listed chromosomes
 
-#### Following this, we use PLINK to filter for linkage disequilibrium – important as this could impact analyses of gene flow or population genetic structure.
+vcftools --vcf populations.snps.vcf --chr OU383773.1 --chr OU383774.1 --chr OU383775.1 --chr OU383777.1 --chr OU383778.1 --chr OU383779.1 --chr OU383780.1 --chr OU383781.1 --chr OU383782.1 --chr OU383783.1 --chr OU383784.1 --chr OU383785.1 --chr OU383786.1 --chr OU383787.1 --chr OU383788.1 --chr OU383789.1 --chr OU383790.1 --chr OU383791.1 --chr OU383792.1 --chr OU383793.1 --chr OU383794.1 --chr OU383796.1 --chr OU383797.1 --chr OU383798.1 --chr OU383800.1 --chr OU383799.1 --chr OU383801.1 --chr OU383802.1 --chr OU383803.1 --recode --out populations.snps.chromfilt
 
-module load plink/1.90
+# ALLELIC BALANCE FILTER
+# Sets genotypes to missing (./.) where a binomial test on the allele depths
+# (AD) gives p < 1e-3. This removes heterozygous calls with strongly skewed
+# read counts (e.g. 18 reads vs 2 reads).
+#   -t "b:AD<1e-3" : target genotypes failing the binomial test
+#   -n .           : set them to missing
 
-plink --vcf populations.snps.vcf --allow-extra-chr --make-bed --out PLINK_OUTPUT
+bcftools +setGT -O z -o populations.snps.chromfilt.ABfilt.unsorted.vcf.gz populations.snps.chromfilt.recode.vcf -- -t "b:AD<1e-3" -n .
+
+# Sort and index
+
+bcftools sort populations.snps.chromfilt.ABfilt.unsorted.vcf.gz -O z -o populations.snps.chromfilt.ABfilt.vcf.gz
+bcftools index populations.snps.chromfilt.ABfilt.vcf.gz
+
+# Remove sites with >20% missing genotypes (keep sites genotyped in >=80% of samples)
+
+vcftools --gzvcf populations.snps.chromfilt.ABfilt.vcf.gz --max-missing 0.8 --recode --out populations.snps.chromfilt.ABfilt.maxmiss0.8
+
+# LD pruning
+
+plink --vcf populations.snps.chromfilt.ABfilt.maxmiss0.8.recode.vcf --allow-extra-chr --double-id --make-bed --out PLINK_OUTPUT
+
 plink --bfile PLINK_OUTPUT --allow-extra-chr --indep-pairwise 50 5 0.5
 
-vcftools --vcf populations.snps.vcf --exclude plink.prune.out --recode --out PLINKPRUNED
+# LD-pruned VCF
 
-#### 2. Generate VCF for gene-environment association analyses*
-
-#!/bin/bash
-#SBATCH --job-name=GEA_VCF_Gen
-#SBATCH --output=GEA_VCF_out.txt
-#SBATCH --error=GEA_VCF_error.txt
-#SBATCH --account=project_xxxxx
-
-cd /filepath/to/populations/runs/
-
-module load biokit
-mkdir populations_run1_GEA
-mkdir populations_run2_GEA
-mkdir populations_run3_GEA
-
-populations -P /file/path/torefmap_outputs/ --popmap /file/path/to/lfmm_popmap_no_NA -O /filepath/to/populations_run1_GEA/ --vcf
-
-#### We now have an unfiltered VCF in the ‘populations_run1_GEA’ folder. Let’s use VCFtools to get some statistics on this VCF:
-
-cd /filepath/to/populations_run1_GEA/
-
-module load vcftools
-
-vcftools --vcf populations.snps.vcf --depth --out test-depth
-vcftools --vcf populations.snps.vcf --site-mean-depth --out test-mean-depth
-vcftools --vcf populations.snps.vcf --missing-site --out test_missing-site
-vcftools --vcf populations.snps.vcf --missing-indv --out test_missing-indv
-vcftools --vcf populations.snps.vcf --freq2 --out test_freq
-
-#### Now let’s do some depth filtering in VCFtools. First, we should output the sites to be removed:
-
-vcftools --vcf populations.snps.vcf --min-meanDP 10 --max-meanDP 100 --removed-sites --out vcftools_min-meanDP10_max-meanDP100
-
-grep -f vcftools_min-meanDP10_max-meanDP100.removed.sites populations.sumstats.tsv -F -w | cut -f1 | sort -n | uniq > blacklist_min_meanDP10_max-meanDP100_removed_positions
-
-#### Run ‘populations’ with the blacklist we just made, plus some additional filters, and output HWE. We will output the new VCF in ‘populations_run2_GEA_will’:
-
-populations -P /filepath/torefmap_outputs/ --popmap /filepath/to/lfmm_popmap_no_NA -O /filepath/to/populations_run2_GEA/ -B /filepath/to/blacklist_min_meanDP10_max-meanDP100_removed_positions --vcf --hwe
-
-#### Next, we want to output a whitelist of SNPs in HWE in all populations which have more than ten individuals. This is done on the new VCF:
-
-cd /filepath/to/populations_run2_GEA
-
-cat populations.sumstats.tsv | grep -v '^#' | awk '$20 > 0.05 && ($5 == "DEDG" || $5 == "DEMH" || $5 == "EE" || $5 == "FINM" || $5 == "FINE" || $5 == "IT" || $5 == "LT" || $5 == "NO" || $5 == "PL")' | cut -f 1,4 | awk '++a[$1,$2]==1{ print $1,$2 }' OFS='\t' | sort -n > wl_snps_in_hwe_in_all_pops_with_10indv
-
-#### Now let’s run populations again with this new whitelist (i.e. filtering our depth filtered VCF). The VCF which is filtered for depth AND hwe AND MAF AND –R AND heterozygosity is outputted to ‘populations_run3_GEA’:
-
-populations -P /filepath/torefmap_outputs/ --popmap /filepath/to/lfmm_popmap_no_NA -O /filepath/to/populations_run3_GEA/ -W /filepath/to/wl_snps_in_hwe_in_all_pops_with_10indv -R 1 --min-mac 3 --max-obs-het 0.75 --write-single-snp --vcf
-
-cd /filepath/to/populations_run3_GEA_will/
-
+vcftools --vcf populations.snps.chromfilt.ABfilt.maxmiss0.8.recode.vcf --exclude plink.prune.out --recode --out PLINKPRUNED
