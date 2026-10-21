@@ -1,85 +1,142 @@
-setwd("/file/path")
-library(pophelper)
+##################################
+### Plotting admixture results ###
+##################################
 
-remotes::install_github('royfrancis/pophelper')
+# Set working directory
 
-Admixqlist2 <- readQ("/filepath/to/PLINKPRUNED_EEMS_input_new.2.Q")
-Admixqlist3 <- readQ("/filepath/to/PLINKPRUNED_EEMS_input_new.3.Q")
-Admixqlist4 <- readQ("/filepath/to/PLINKPRUNED_EEMS_input_new.4.Q")
+setwd("/Users/williamsmith/Desktop/ReeWa_Admix")
 
-inds <- read.delim("/filepath/to/GeneFlow_popmap", header = FALSE)
+# Load libraries
 
-rownames(Admixqlist2[[1]]) <- inds$V1
-rownames(Admixqlist3[[1]]) <- inds$V1
-rownames(Admixqlist4[[1]]) <- inds$V1
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(gridExtra)
 
-Admixdata2 <- Admixqlist2[[1]] %>% rownames_to_column(var = 'ind') %>%
-  pivot_longer(Cluster1:Cluster2, names_to = 'cluster', values_to = 'value') %>%
-  mutate(k = 'K = 2')
-Admixdata3 <- Admixqlist3[[1]] %>% rownames_to_column(var = 'ind') %>%
-  pivot_longer(Cluster1:Cluster3, names_to = 'cluster', values_to = 'value') %>%
-  mutate(k = 'K = 3')
-Admixdata4 <- Admixqlist4[[1]] %>% rownames_to_column(var = 'ind') %>%
-  pivot_longer(Cluster1:Cluster4, names_to = 'cluster', values_to = 'value') %>%
-  mutate(k = 'K = 4')
+# Read info files
 
-admixdata <- rbind(Admixdata2, Admixdata3, Admixdata4)
-popmap <- read_delim('/filepath/to/GeneFlow_popmap', col_names = F) %>%
-  rename(ind = X1, pop = X2)
-admixdata <- left_join(admixdata, popmap, by = 'ind')
+coords <- read.table("../Individuals.coords", header = FALSE, col.names = c("lon", "lat"))
+popmap <- read.table("../PopMap", header = FALSE, col.names = c("IndName", "Location"))
 
+# Add individual index to coords
 
-library(ggh4x)
-d <- rep('', 188)
-dput(d)
+coords$IndName <- popmap$IndName
+coords$Location <- popmap$Location
 
-sampleinfo <- read_csv("/filepath/to/sample_info_GeneFlow.csv")
+# Read and process Q files
 
-LatitudeInds <- admixdata %>% 
-  dplyr::select(pop,ind) %>% 
-  rename(Selected = ind) %>% 
-  left_join(sampleinfo %>% dplyr::select(Selected, lat), by = 'Selected') %>%
-  arrange(lat)
+read_q_file <- function(k_value) {
+  filepath <- paste0("admixture_K", k_value, "/GF_auto_0.5.admix.", k_value, ".Q")
+  data <- read.table(filepath, header = FALSE)
+  
+  # Add sample names from popmap
+  data$IndName <- popmap$IndName
+  data$K <- k_value
+  
+  return(data)
+}
 
-Latcolours <- data.frame(pop = factor(unique(LatitudeInds$pop), levels = unique(LatitudeInds$pop[order(-LatitudeInds$lat)])))
-admixdata_plot <- admixdata %>%
-  left_join(Latcolours, by = 'pop')
-admixdata_plot$pop <- factor(admixdata_plot$pop, levels = levels(Latcolours$pop))
-admixdata_plot <- admixdata_plot %>%
-  mutate(ind = factor(ind, levels = unique(ind)))
+# Read Q files for K2, K3, and K4
 
-(admixture <- ggplot(data = admixdata_plot, aes(x = interaction(ind,pop), y = value, fill = cluster)) + 
-    geom_bar(stat = 'identity', position = 'fill') + theme_bw() +
-    scale_x_discrete(guide = 'axis_nested') +
-    theme(axis.text.x = element_text(size = 8, angle = 90, hjust = 1, vjust = 0.5),
-          axis.title = element_blank(),
-          legend.position = 'none',
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          strip.background = element_blank(),
-          strip.text = element_text(size = 14, face = 'bold', hjust = 0)) +
-  facet_wrap(~k, ncol = 1))
+k2_data <- read_q_file(2)
+k3_data <- read_q_file(3)
+k4_data <- read_q_file(4)
 
-ggsave('admix.png', plot = admixture, path = '~/Desktop', dpi = 600, width = 13, height = 8, unit = 'in')
+# Prepare data for plotting
 
+prepare_plot_data <- function(data, k_value, coords_data) {
 
-plotQMultiline(Admixqlist2, spl = 190, lpp = 1,showindlab = TRUE, outputfilename = "Admix2FINAL",
-               useindlab = TRUE, indlabsize = 4.7, 
-               dpi = 600, grplabsize = 5, grplabbgcol = "black", grplabcol = "white", indlabspacer = 0.2,
-               barsize = 1, imgtype = "jpeg", exportpath = getwd(), grpmean = FALSE,
-               clustercol = c("#A765d0","#82AB60"), barbordersize = 0.2, barbordercolour = "white"  ,
-               width = 15, height = 5)
+  data_long <- data %>%
+    select(-K) %>%
+    pivot_longer(cols = -IndName, 
+                 names_to = "Ancestry", 
+                 values_to = "Proportion") %>%
+    mutate(K = k_value,
+           Ancestry = paste0("Ancestry_", as.numeric(gsub("V", "", Ancestry)))) %>%
+   
+     # Join with coordinates and location info
+    
+    left_join(coords_data %>% select(IndName, Location, lat), by = "IndName")
+  
+  return(data_long)
+}
 
-plotQMultiline(Admixqlist3, spl = 190, lpp = 1,showindlab = TRUE, outputfilename = "Admix3FINAL",
-               useindlab = TRUE, indlabsize = 4.7, 
-               dpi = 600, grplabsize = 5, grplabbgcol = "black", grplabcol = "white", indlabspacer = 0.2,
-               barsize = 1, imgtype = "jpeg", exportpath = getwd(), grpmean = FALSE,
-               clustercol = c("pink","#82AB60","#A765d0"), barbordersize = 0.2, barbordercolour = "white"  ,
-               width = 15, height = 5)
+# Prepare data
 
-plotQMultiline(Admixqlist4, spl = 190, lpp = 1,showindlab = TRUE, outputfilename = "Admix4FINAL",
-               useindlab = TRUE, indlabsize = 4.7, 
-               dpi = 600, grplabsize = 5, grplabbgcol = "black", grplabcol = "white", indlabspacer = 0.2,
-               barsize = 1, imgtype = "jpeg", exportpath = getwd(), grpmean = FALSE,
-               clustercol = c("#A765d0","#82AB60","pink","red"), barbordersize = 0.2, barbordercolour = "white"  ,
-               width = 15, height = 5)
+k2_plot_data <- prepare_plot_data(k2_data, 2, coords)
+k3_plot_data <- prepare_plot_data(k3_data, 3, coords)
+k4_plot_data <- prepare_plot_data(k4_data, 4, coords)
+
+# Create ordered individual factor (by latitude, from north to south)
+
+individual_order_df <- coords %>%
+  arrange(desc(lat)) %>%
+  select(IndName, Location, lat)
+
+individual_order <- individual_order_df$IndName
+
+# Print the ordered list to console
+
+cat("Individual Order (North to South by Latitude):\n")
+cat("==============================================\n")
+print(individual_order_df)
+cat("\n")
+
+# Save the ordered list to a file
+
+write.csv(individual_order_df, "individual_order_by_latitude.csv", row.names = FALSE)
+cat("Order saved to: individual_order_by_latitude.csv\n\n")
+
+# Convert individual to factor with proper ordering
+
+k2_plot_data$IndName <- factor(k2_plot_data$IndName, levels = individual_order)
+k3_plot_data$IndName <- factor(k3_plot_data$IndName, levels = individual_order)
+k4_plot_data$IndName <- factor(k4_plot_data$IndName, levels = individual_order)
+
+# Define colours for ancestry components
+
+ancestry_colours <- c(
+  "Ancestry_1" = "#E41A1C",
+  "Ancestry_2" = "#377EB8",
+  "Ancestry_3" = "#4DAF4A",
+  "Ancestry_4" = "#984EA3"
+)
+
+# Create individual plots with small gaps between bars
+
+plot_k2 <- ggplot(k2_plot_data, aes(x = IndName, y = Proportion, fill = Ancestry)) +
+  geom_bar(stat = "identity", width = 0.95) +
+  scale_fill_manual(values = ancestry_colours) +
+  labs(title = "K = 2", x = "", y = "Ancestry Proportion") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "right")
+
+plot_k3 <- ggplot(k3_plot_data, aes(x = IndName, y = Proportion, fill = Ancestry)) +
+  geom_bar(stat = "identity", width = 0.95) +
+  scale_fill_manual(values = ancestry_colours) +
+  labs(title = "K = 3", x = "", y = "Ancestry Proportion") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "right")
+
+plot_k4 <- ggplot(k4_plot_data, aes(x = IndName, y = Proportion, fill = Ancestry)) +
+  geom_bar(stat = "identity", width = 0.95) +
+  scale_fill_manual(values = ancestry_colours) +
+  labs(title = "K = 4", x = "Sample", y = "Ancestry Proportion") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "right")
+
+# Combine plots vertically
+
+combined_plot <- gridExtra::grid.arrange(plot_k2, plot_k3, plot_k4, ncol = 1)
+
+# Save the plot
+
+png("admixture_K2_K3_K4.png", width = 1200, height = 900, res = 100)
+print(combined_plot)
+dev.off()
