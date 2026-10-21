@@ -4,9 +4,9 @@
 
 # Set working directory
 
-setwd("/Users/williamsmith/Desktop/ReeWa_Admix")
+setwd("/filepath/ReeWa_Admix")
 
-# Load libraries
+# Loading required libraries
 
 library(ggplot2)
 library(tidyr)
@@ -18,7 +18,7 @@ library(gridExtra)
 coords <- read.table("../Individuals.coords", header = FALSE, col.names = c("lon", "lat"))
 popmap <- read.table("../PopMap", header = FALSE, col.names = c("IndName", "Location"))
 
-# Add individual index to coords
+# Add individual index to coords (row order matches Q file order)
 
 coords$IndName <- popmap$IndName
 coords$Location <- popmap$Location
@@ -45,7 +45,9 @@ k4_data <- read_q_file(4)
 # Prepare data for plotting
 
 prepare_plot_data <- function(data, k_value, coords_data) {
-
+ 
+   # Reshape data to long format
+  
   data_long <- data %>%
     select(-K) %>%
     pivot_longer(cols = -IndName, 
